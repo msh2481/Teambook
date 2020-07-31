@@ -3,14 +3,14 @@ set nocp
 set sc
 set nu
 set t_Co=256
+set tgc
 set noswf
 set ts=4
 set sw=4
 set ai
 set si
-set sta
-set et
 colo slate
+set ul=1000000
 set clipboard=unnamed
 
 map cp :w<cr>ggVGy
