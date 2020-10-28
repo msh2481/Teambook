@@ -1,9 +1,6 @@
-#ifdef LC
-#include "pch.h"
-#else
 #include <bits/stdc++.h>
-#endif
 using namespace std;
+#define all(x) x.begin(), x.end()
 
 using dbl = long double;
 const dbl EPS = 1e-9;
@@ -26,6 +23,7 @@ struct simplex {
 		lim = new dbl[n + m];
 		who = new int[n + m];
 		iota(p, p + n + m, 0);
+
 		z = 0;
 	}
 
@@ -52,6 +50,7 @@ struct simplex {
 	void objective(vector<pair<int, dbl>> poly) {
 		fill_n(f, n + m, 0);
 		for (auto e : poly) {
+			assert(0 <= e.first && e.first < m);
 			f[n + e.first] = e.second;
 		}
 	}
@@ -78,7 +77,7 @@ struct simplex {
 	void exchange(int i, int j) {
 		// i = (int)(find(p, p + n + m, i) - p);
 		// j = (int)(find(p, p + n + m, j) - p);
-		assert(i < n && j >= n);
+		assert(0 <= i && i < n && n <= j && j < n + m);
 		swap(f[i], f[j]), swap(p[i], p[j]);
 		swap(k[i][i], k[i][j]);
 		for (int pos = n + m; pos >= i; --pos) {
@@ -125,19 +124,28 @@ struct simplex {
 			if (k[i][n + m] >= 0) {
 				continue;
 			}
+			vector<int> can;
 			for (int j = n; j < n + m; ++j) {
 				if (k[i][j] < 0) {
-					cout << "not feasible" << endl;
-					exchange(i, j);
-					return true;
+					can.push_back(j);
 				}
 			}
+			if (can.empty()) {
+				return false;
+			}
+			int j = *min_element(all(can), [&](int x, int y) {
+				return k[i][x] < k[i][y];
+			});
+			exchange(i, j);
+			return true;
 		}
 		fill_n(lim, n + m, INF);
 		fill_n(who, n + m, -1);
 		for (int i = 0; i < n; ++i) {
 			assert(abs(k[i][i] - 1) < EPS);
-			assert(k[i][n + m] >= 0);
+			if (k[i][n + m] < 0) {
+				return false;
+			}
 			for (int j = n; j < n + m; ++j) {
 				if (k[i][j] <= 0) {
 					continue;
@@ -165,6 +173,7 @@ struct simplex {
 			}
 			exchange(who[i], i);
 		}
+		return false;
 		int best = -1;
 		for (int i = n; i < n + m; ++i) {
 			if (who[i] == -1) {
@@ -190,11 +199,13 @@ struct simplex {
 		}
 		cout << "here" << endl;
 		for (int it = 0; it < 1000 && iteration(); ++it) {
+			assert(it < 900);
 	    	cout << it << ":\t" << getf() << endl;
 	    }
 	    for (int i = 0; i < n + m; ++i) {
 			f[i] *= mul;
 		}
+		// print();
 		// cout << "recovery " << endl;
 		// for (int i = 0; i < n; ++i) {
 		// 	if (p[i] < n) {
@@ -209,54 +220,31 @@ struct simplex {
 
 const int N = 1000;
 int n, m;
-int a[N];
-set<int> g[N];
+dbl x;
 
-main() {
+signed main() {
 #ifdef LC
     assert(freopen("input.txt", "r", stdin));
 #endif
     ios::sync_with_stdio(0); cin.tie(0);
 
-    cin >> n;
-    for (int i = 0; i < n; ++i) {
-    	cin >> a[i];
-    }
-    for (int i = 0; i < n; ++i) {
-    	for (int j = i + 1; j <= n; ++j) {
-    		assert(m + 2 < N);
-    		for (int t = i; t < j; ++t) {
-    			g[m].insert(t);
-    		}
-    		cout << m << "\t" << i << " " << j << " seq" << endl;
-    		++m;
-    		if ((j - i) % 2 == 0 || j - i < 3) {
-    			continue;
-    		}
-    		for (int t = i; t < j; ++t) {
-    			g[m].insert(t);
-    		}
-    		cout << m << "\t" << i << " " << j << " sparse" << endl;
-    		++m;
-    	}
-    }
-    simplex lp(2 * n, m);
+    cin >> n >> m;
+    simplex lp(n, m);
     for (int i = 0; i < n; ++i) {
     	vector<pair<int, dbl>> p;
     	for (int j = 0; j < m; ++j) {
-    		if (g[j].count(i)) {
-    			p.emplace_back(j, 1);
-    		}
+    		cin >> x;
+    		p.emplace_back(j, x);
     	}
-    	lp.greater_equal(p, a[i]);
-    	lp.less_equal(p, a[i]);
+    	cin >> x;
+    	lp.less_equal(p, x);
     }
     vector<pair<int, dbl>> p;
-    for (int j = 0; j < m; ++j) {
-    	p.emplace_back(j, 1);
-    }
-    lp.objective(p);
-    cout << lp.solve(-1) << endl;
-    cout << clock() << " ms" << endl;
+	for (int j = 0; j < m; ++j) {
+		cin >> x;
+		p.emplace_back(j, x);
+	}
+	lp.objective(p);
+    cout << lp.solve(+1) << endl;
     return 0;
 }
