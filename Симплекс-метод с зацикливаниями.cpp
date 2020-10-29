@@ -3,8 +3,9 @@ using namespace std;
 #define all(x) x.begin(), x.end()
 
 using dbl = long double;
-const dbl EPS = 1e-9;
+const dbl EPS = 1e-12;
 const dbl INF = 1e18;
+mt19937 rnd;
 
 struct simplex {
 	int n; 		// количество исходных неравенств
@@ -18,7 +19,7 @@ struct simplex {
 
 	simplex(int n_eq, int n_var) : n(n_eq), m(n_var) {
 		k = new dbl*[n];
-		f = new dbl[n + m];
+		f = new dbl[n + m + 1];
 		p = new int[n + m];
 		lim = new dbl[n + m];
 		who = new int[n + m];
@@ -48,14 +49,14 @@ struct simplex {
 		k[z++][n + m] = -con;
 	}
 	void objective(vector<pair<int, dbl>> poly) {
-		fill_n(f, n + m, 0);
+		fill_n(f, n + m + 1, 0);
 		for (auto e : poly) {
 			assert(0 <= e.first && e.first < m);
 			f[n + e.first] = e.second;
 		}
 	}
 	void print() {
-		cout << fixed << setprecision(2);
+		cout << setprecision(2);
 		cout << endl;
 		for (int i = 0; i < n + m; ++i) {
 			cout << p[i] << "\t";
@@ -63,13 +64,13 @@ struct simplex {
 		cout << endl;
 		for (int i = 0; i < n; ++i) {
 			for (int j = 0; j < n + m; ++j) {
-				cout << k[i][j] << " ";
+				cout << k[i][j] << "\t";
 			}
 			cout << "= " << k[i][n + m] << endl;
 		}
 		cout << "max" << endl;
-		for (int i = 0; i < n + m; ++i) {
-			cout << f[i] << " ";
+		for (int i = 0; i <= n + m; ++i) {
+			cout << f[i] << "\t";
 		}
 		cout << endl;
 	}
@@ -78,7 +79,7 @@ struct simplex {
 		// i = (int)(find(p, p + n + m, i) - p);
 		// j = (int)(find(p, p + n + m, j) - p);
 		assert(0 <= i && i < n && n <= j && j < n + m);
-		swap(f[i], f[j]), swap(p[i], p[j]);
+		swap(p[i], p[j]);
 		swap(k[i][i], k[i][j]);
 		for (int pos = n + m; pos >= i; --pos) {
 			k[i][pos] /= k[i][i];
@@ -93,14 +94,15 @@ struct simplex {
 				k[row][pos] -= k[i][pos] * cur;
 			}
 		}
+		dbl cur = f[j];
+		f[j] = 0;
+		for (int pos = n; pos <= n + m; ++pos) {
+			f[pos] -= k[i][pos] * cur;
+		}
 	}
 
 	dbl getf() {
-		dbl s = 0;
-		for (int i = 0; i < n; ++i) {
-			s += k[i][n + m] * f[i];
-		}
-		return s;
+		return -f[n + m];
 	}
 
 	dbl profit(int i, int j) {
@@ -118,15 +120,15 @@ struct simplex {
 	}
 
 	bool iteration() {
-		cout << "iteration " << getf() << endl;
+		// cout << "iteration " << getf() << endl;
 		for (int i = 0; i < n; ++i) {
 			assert(abs(k[i][i] - 1) < EPS);
-			if (k[i][n + m] >= 0) {
+			if (k[i][n + m] >= -EPS) {
 				continue;
 			}
 			vector<int> can;
 			for (int j = n; j < n + m; ++j) {
-				if (k[i][j] < 0) {
+				if (k[i][j] < -EPS) {
 					can.push_back(j);
 				}
 			}
@@ -143,11 +145,12 @@ struct simplex {
 		fill_n(who, n + m, -1);
 		for (int i = 0; i < n; ++i) {
 			assert(abs(k[i][i] - 1) < EPS);
-			if (k[i][n + m] < 0) {
+			if (k[i][n + m] < -EPS) {
+				cout << "not feasible" << endl;
 				return false;
 			}
 			for (int j = n; j < n + m; ++j) {
-				if (k[i][j] <= 0) {
+				if (k[i][j] <= EPS) {
 					continue;
 				}
 				dbl cur = k[i][n + m] / k[i][j];
@@ -157,52 +160,44 @@ struct simplex {
 				}
 			}
 		}
-		for (int i = n; i < n + m; ++i) {
-			assert(lim[i] >= 0);
-			if (lim[i] <= EPS || who[i] == -1) {
-				continue;
-			}
-			dbl old = getf();
-			// if (profit(who[i], i) <= EPS) {
-			// 	continue;
-			// }
-			exchange(who[i], i);
-			dbl cur = getf();
-			if (old < cur) {
-				return true;
-			}
-			exchange(who[i], i);
-		}
-		return false;
-		int best = -1;
+		// for (int i = n; i < n + m; ++i) {
+		// 	assert(lim[i] >= 0);
+		// 	if (lim[i] <= EPS || who[i] == -1) {
+		// 		continue;
+		// 	}
+		// 	dbl old = getf();
+		// 	// if (profit(who[i], i) <= EPS) {
+		// 	// 	continue;
+		// 	// }
+		// 	exchange(who[i], i);
+		// 	dbl cur = getf();
+		// 	if (old < cur) {
+		// 		return true;
+		// 	}
+		// 	exchange(who[i], i);
+		// }
 		for (int i = n; i < n + m; ++i) {
 			if (who[i] == -1) {
 				continue;
 			}
-			if (best == -1 || f[i] > 0) {
-				best = i;
+			if (f[i] > EPS) {
+				exchange(who[i], i);
+				return true;
 			}
 		}
-		if (best == -1) {
-			return false;
-		}
-		cout << "best " << best <<  " " << f[best] << endl;
-		exchange(who[best], best);
-		return true;
+		return false;
 	}
 
 	// mul = +1 for maximization
 	// mul = -1 for minimization
 	dbl solve(dbl mul) {
-		for (int i = 0; i < n + m; ++i) {
+		for (int i = 0; i <= n + m; ++i) {
 			f[i] *= mul;
 		}
-		cout << "here" << endl;
-		for (int it = 0; it < 1000 && iteration(); ++it) {
-			assert(it < 900);
-	    	cout << it << ":\t" << getf() << endl;
+		for (int it = 0; iteration(); ++it) {
+	    	// cout << "#" << it << ":\t" << getf() << endl;
 	    }
-	    for (int i = 0; i < n + m; ++i) {
+	    for (int i = 0; i <= n + m; ++i) {
 			f[i] *= mul;
 		}
 		// print();
@@ -212,15 +207,16 @@ struct simplex {
 		// 		continue;
 		// 	}
 		// 	assert(abs(k[i][i] - 1) < EPS);
-		// 	cout << p[i] << ": " << k[i][n + m] << endl;
+		// 	cout << p[i] - n << ": " << k[i][n + m] << endl;
 		// }
 	    return getf();
 	}
 };
 
-const int N = 1000;
+const int N = 10000;
 int n, m;
-dbl x;
+int a[N];
+set<int> g[N];
 
 signed main() {
 #ifdef LC
@@ -228,23 +224,45 @@ signed main() {
 #endif
     ios::sync_with_stdio(0); cin.tie(0);
 
-    cin >> n >> m;
-    simplex lp(n, m);
+	cin >> n;
+    for (int i = 0; i < n; ++i) {
+    	cin >> a[i];
+    }
+    for (int i = 0; i < n; ++i) {
+    	for (int j = i + 1; j <= n; ++j) {
+    		assert(m + 2 < N);
+    		for (int t = i; t < j; ++t) {
+    			g[m].insert(t);
+    		}
+    		// cout << m << "\t" << i << " " << j << " seq" << endl;
+    		++m;
+    		if ((j - i) % 2 == 0 || j - i < 3) {
+    			continue;
+    		}
+    		for (int t = i; t < j; t += 2) {
+    			g[m].insert(t);
+    		}
+    		// cout << m << "\t" << i << " " << j << " sparse" << endl;
+    		++m;
+    	}
+    }
+    simplex lp(2 * n, m);
     for (int i = 0; i < n; ++i) {
     	vector<pair<int, dbl>> p;
     	for (int j = 0; j < m; ++j) {
-    		cin >> x;
-    		p.emplace_back(j, x);
+    		if (g[j].count(i)) {
+    			p.emplace_back(j, 1);
+    		}
     	}
-    	cin >> x;
-    	lp.less_equal(p, x);
+    	lp.greater_equal(p, a[i]);
+    	lp.less_equal(p, a[i]);
     }
     vector<pair<int, dbl>> p;
-	for (int j = 0; j < m; ++j) {
-		cin >> x;
-		p.emplace_back(j, x);
-	}
-	lp.objective(p);
-    cout << lp.solve(+1) << endl;
+    for (int j = 0; j < m; ++j) {
+    	p.emplace_back(j, 1);
+    }
+    lp.objective(p);
+    cout << lp.solve(-1) << endl;
+    cout << 1000 * clock() / CLOCKS_PER_SEC << " ms" << endl;
     return 0;
 }
